@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Garden Pin</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--green:#1a3a2a;--cream:#f5f0e0;--terra:#c0653a;--card-bg:rgba(26,58,42,0.85)}
+body{font-family:ui-monospace,SFMono-Regular,monospace;background:var(--green);color:var(--cream);min-height:100vh;display:flex;flex-direction:column}
+.view{flex:1;display:none;padding:1.5rem 1rem 4.5rem;overflow-y:auto}
+.view.active{display:flex;flex-direction:column;align-items:center}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;justify-content:center;gap:2rem;padding:.75rem;background:rgba(10,20,14,0.95);border-top:1px solid rgba(245,240,224,0.1)}
+nav a{width:10px;height:10px;border-radius:50%;background:rgba(245,240,224,0.3);transition:all .2s}
+nav a.active{background:var(--terra);box-shadow:0 0 6px var(--terra)}
+
+/* Hero */
+.garden-bg{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 80%,#0f2a1a,var(--green));z-index:0}
+.hero{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:1rem}
+.hero h1{font-size:.75rem;letter-spacing:.15em;text-transform:uppercase;color:var(--terra);opacity:.8}
+.pin-card{background:var(--card-bg);border:1px solid rgba(245,240,224,0.12);border-radius:12px;padding:1.5rem 2rem;text-align:center;position:relative;overflow:visible;backdrop-filter:blur(4px)}
+.pin-card::before{content:'';position:absolute;inset:-1px;border-radius:12px;border:1px solid transparent;background:repeating-linear-gradient(135deg,transparent,transparent 8px,rgba(245,240,224,0.04) 8px,rgba(245,240,224,0.04) 9px);pointer-events:none}
+.avatar{width:48px;height:48px;border-radius:50%;background:var(--terra);margin:0 auto .75rem;display:flex;align-items:center;justify-content:center;font-size:1.2rem;color:var(--cream)}
+.pin-card h2{font-size:1rem;font-weight:400;margin-bottom:.25rem}
+.pin-card .since{font-size:.65rem;opacity:.5}
+.pin-icon{position:absolute;top:.75rem;right:.75rem;cursor:pointer;font-size:.9rem;transition:transform .3s}
+.pin-icon:hover{color:var(--terra)}
+
+/* Rooting animation */
+.vines{position:absolute;bottom:-40px;left:50%;transform:translateX(-50%);width:60px;height:40px;opacity:0;transition:opacity .4s}
+.pin-card.rooted .vines{opacity:1}
+.vine{position:absolute;bottom:0;width:2px;background:linear-gradient(to bottom,rgba(245,240,224,0.3),transparent);border-radius:1px;animation:grow .6s ease-out forwards;transform-origin:top}
+@keyframes grow{from{height:0}to{height:var(--h)}}
+.pin-card.rooted{animation:settle .4s ease-out forwards}
+@keyframes settle{0%{transform:translateY(0)}40%{transform:translateY(4px)}100%{transform:translateY(2px)}}
+
+/* Select view */
+.res-list{width:100%;max-width:320px;list-style:none}
+.res-list li{display:flex;justify-content:space-between;align-items:center;padding:.6rem .75rem;border-bottom:1px solid rgba(245,240,224,0.06);font-size:.8rem}
+.res-list li button{background:none;border:1px solid rgba(245,240,224,0.2);color:var(--cream);border-radius:4px;padding:.2rem .5rem;font-size:.65rem;font-family:inherit;cursor:pointer}
+.res-list li button:hover{border-color:var(--terra);color:var(--terra)}
+.view-title{font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;opacity:.5;margin-bottom:1rem}
+
+/* Garden map */
+.garden-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;width:100%;max-width:240px}
+.plot{aspect-ratio:1;border:1px solid rgba(245,240,224,0.08);border-radius:4px;background:rgba(245,240,224,0.02)}
+.plot.occupied{background:rgba(192,101,58,0.2);border-color:var(--terra);position:relative}
+.plot.occupied::after{content:'\2022';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--terra);font-size:1.2rem}
+</style>
+</head>
+<body>
+
+<div class="view" id="v-hero">
+<div class="garden-bg"></div>
+<div class="hero">
+<h1>Garden Pin</h1>
+<div class="pin-card" id="pinCard">
+<span class="pin-icon" id="pinBtn">&#9671;</span>
+<div class="avatar">M</div>
+<h2 id="pinnedName">Mara Vasquez</h2>
+<div class="since" id="pinnedSince">pinned since 2025-12-01</div>
+<div class="vines">
+<span class="vine" style="left:12px;--h:28px"></span>
+<span class="vine" style="left:24px;--h:36px;animation-delay:.1s"></span>
+<span class="vine" style="left:36px;--h:22px;animation-delay:.2s"></span>
+<span class="vine" style="left:48px;--h:32px;animation-delay:.15s"></span>
+</div>
+</div>
+</div>
+</div>
+
+<div class="view" id="v-select">
+<div class="view-title">Select Resident to Pin</div>
+<ul class="res-list" id="resList"></ul>
+</div>
+
+<div class="view" id="v-map">
+<div class="view-title">Garden Map</div>
+<div class="garden-grid" id="gardenGrid"></div>
+</div>
+
+<nav>
+<a href="#/" id="nav0"></a>
+<a href="#/s/2" id="nav1"></a>
+<a href="#/s/3" id="nav2"></a>
+</nav>
+
+<script>
+const residents=['Mara Vasquez','Jin Okafor','Lena Schultz','Ayo Diallo','Sam Trujillo','Pia Holmberg'];
+let pinned={name:'Mara Vasquez',since:'2025-12-01',plot:5};
+
+function route(){
+ const h=location.hash||'#/';
+ document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+ document.querySelectorAll('nav a').forEach(a=>a.classList.remove('active'));
+ if(h==='#/s/2'){show('v-select');document.getElementById('nav1').classList.add('active');}
+ else if(h==='#/s/3'){show('v-map');document.getElementById('nav2').classList.add('active');}
+ else{show('v-hero');document.getElementById('nav0').classList.add('active');}
+}
+function show(id){document.getElementById(id).classList.add('active');}
+
+function renderHero(){
+ document.getElementById('pinnedName').textContent=pinned.name;
+ document.getElementById('pinnedSince').textContent='pinned since '+pinned.since;
+ document.querySelector('.avatar').textContent=pinned.name[0];
+}
+function renderList(){
+ const ul=document.getElementById('resList');ul.innerHTML='';
+ residents.forEach(r=>{
+ const li=document.createElement('li');
+ li.innerHTML=r+'<button>'+(r===pinned.name?'pinned':'pin')+'</button>';
+ li.querySelector('button').onclick=()=>{pinned={name:r,since:new Date().toISOString().slice(0,10),plot:Math.floor(Math.random()*12)};renderAll();};
+ ul.appendChild(li);
+ });
+}
+function renderMap(){
+ const g=document.getElementById('gardenGrid');g.innerHTML='';
+ for(let i=0;i<12;i++){
+ const d=document.createElement('div');d.className='plot'+(i===pinned.plot?' occupied':'');
+ g.appendChild(d);
+ }
+}
+function renderAll(){renderHero();renderList();renderMap();}
+
+document.getElementById('pinBtn').onclick=()=>{
+ document.getElementById('pinCard').classList.toggle('rooted');
+};
+
+window.addEventListener('hashchange',route);
+renderAll();route();
+</script>
+</body>
+</html>
